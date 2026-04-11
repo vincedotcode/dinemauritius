@@ -105,7 +105,7 @@ function WarmSelect({ label, value, onChange, options }: {
 
 function DeckButton({ onClick, label, variant, disabled, children, btnRef }: {
   onClick: () => void; label: string; variant: 'skip' | 'detail' | 'save'; disabled?: boolean; children: React.ReactNode
-  btnRef?: RefObject<HTMLButtonElement>
+  btnRef?: RefObject<HTMLButtonElement | null>
 }) {
   const cls = {
     skip: 'h-14 w-14 rounded-full bg-secondary text-secondary-foreground shadow-[0px_0px_0px_1px_#d1cfc5]',
@@ -447,6 +447,12 @@ export function RestaurantGrid({ initialData }: { initialData?: ApiResponse }) {
   const router = useRouter()
   const [view, setView] = useState<ViewMode>('discover')
   const [selectedRestaurant, setSelectedRestaurant] = useState<string | null>(null)
+  const [selectedRestaurantHint, setSelectedRestaurantHint] = useState<Restaurant | null>(null)
+
+  const openSheet = useCallback((restaurant: Restaurant) => {
+    setSelectedRestaurant(restaurant.id)
+    setSelectedRestaurantHint(restaurant)
+  }, [])
   const [isSyncing, setIsSyncing] = useState(false)
   const [pollSync, setPollSync] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -475,7 +481,9 @@ export function RestaurantGrid({ initialData }: { initialData?: ApiResponse }) {
   const cardRef = useRef<HTMLDivElement>(null)
 
   const { data, error, isLoading, mutate } = useSWR<ApiResponse>('/api/restaurants', fetcher, {
-    revalidateOnFocus: false, fallbackData: initialData,
+    revalidateOnFocus: false,
+    revalidateOnMount: !initialData,  // skip re-fetch when SSR already gave us data
+    fallbackData: initialData,
   })
   const { data: syncData, mutate: mutateSyncStatus } = useSWR<SyncResponse>('/api/sync', fetcher, {
     refreshInterval: pollSync ? 3000 : 0,
@@ -640,7 +648,7 @@ export function RestaurantGrid({ initialData }: { initialData?: ApiResponse }) {
     setIsDragging(false)
     if (Math.abs(dragX) >= SWIPE_THRESHOLD) { triggerSwipe(dragX > 0 ? 'right' : 'left'); return }
     // Tap detection: minimal movement = open detail sheet
-    if (Math.abs(dragX) < 8 && currentRestaurant) setSelectedRestaurant(currentRestaurant.id)
+    if (Math.abs(dragX) < 8 && currentRestaurant) openSheet(currentRestaurant)
     setDragX(0); setDragY(0)
   }
 
@@ -719,36 +727,41 @@ export function RestaurantGrid({ initialData }: { initialData?: ApiResponse }) {
     ...(responseData?.districts || []).map(d => ({ value: d.name, label: `${d.name} (${d.restaurantCount})` })),
   ]
 
+  // Skeleton deck shown while loading
+  const showSkeleton = isLoading && !responseData
+
   return (
     <div className="flex min-h-[100dvh] flex-col bg-background">
       <div aria-live="polite" className="sr-only">{announcement}</div>
       <Particles particles={particles} />
 
       {/* ── Mobile Header ─────────────────────────────────────────── */}
-      <header className="sticky top-0 z-30 border-b border-border bg-background/92 backdrop-blur">
-        <div className="flex items-center justify-between gap-4 px-4 py-4">
+      <header className="sticky top-0 z-30 bg-background/95 backdrop-blur-md">
+        <div className="flex items-end justify-between gap-3 px-5 pb-3 pt-5">
           <div className="min-w-0">
-            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">Dine Mauritius</p>
-            <h1 className="font-serif text-[1.6rem] text-foreground leading-tight">Find your table.</h1>
+            <p className="text-[9px] font-semibold uppercase tracking-[0.25em] text-muted-foreground/70 mb-1">Dine Mauritius</p>
+            <h1 className="font-serif text-[1.75rem] leading-[1.1] text-foreground">
+              {view === 'saved' ? 'Your table picks.' : 'Find your table.'}
+            </h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 pb-0.5">
             <button type="button" onClick={handleSync} disabled={syncActive}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-card shadow-[0px_0px_0px_1px_#d1cfc5] disabled:opacity-50">
-              {syncActive ? <Spinner className="h-4 w-4" /> : <RefreshCw className="h-4 w-4" />}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-card shadow-[0px_0px_0px_1px_#e8e6dc] disabled:opacity-40 transition-opacity">
+              {syncActive ? <Spinner className="h-3.5 w-3.5" /> : <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />}
             </button>
             <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
               <DrawerTrigger asChild>
-                <button type="button" className="inline-flex h-10 items-center gap-2 rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground shadow-[0px_0px_0px_1px_#c96442]">
-                  <SlidersHorizontal className="h-4 w-4" />
-                  {hasFilters ? '•' : 'Filter'}
+                <button type="button" className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-medium transition-all ${hasFilters ? 'bg-primary text-primary-foreground shadow-[0px_0px_0px_1px_#c96442]' : 'bg-card shadow-[0px_0px_0px_1px_#e8e6dc] text-foreground'}`}>
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                  {hasFilters ? 'Filtered' : 'Filter'}
                 </button>
               </DrawerTrigger>
               <DrawerContent className="rounded-t-[24px] border-border bg-background">
-                <DrawerHeader className="px-4 pb-2 pt-5 text-left">
+                <DrawerHeader className="px-5 pb-2 pt-5 text-left">
                   <DrawerTitle className="font-serif text-[1.6rem] font-medium">Tune the deck</DrawerTitle>
                   <DrawerDescription className="text-sm text-muted-foreground">Narrow by district, cuisine, or open now.</DrawerDescription>
                 </DrawerHeader>
-                <div className="grid gap-4 px-4 pb-4">
+                <div className="grid gap-4 px-5 pb-4">
                   <SearchBar value={searchQuery} onChange={setSearchQuery} label="Search restaurants" />
                   <WarmSelect label="District" value={selectedDistrict} onChange={setSelectedDistrict} options={districtOptions} />
                   <WarmSelect label="Cuisine" value={selectedCuisine} onChange={setSelectedCuisine} options={CUISINE_OPTIONS} />
@@ -759,24 +772,26 @@ export function RestaurantGrid({ initialData }: { initialData?: ApiResponse }) {
                     <span className="text-xs">{openNowOnly ? 'On' : 'Off'}</span>
                   </button>
                 </div>
-                <DrawerFooter className="border-t border-border px-4 pb-[calc(env(safe-area-inset-bottom,0px)+16px)] pt-4">
+                <DrawerFooter className="border-t border-border px-5 pb-[calc(env(safe-area-inset-bottom,0px)+16px)] pt-4">
                   <button type="button" onClick={() => { setSearchQuery(''); setSelectedDistrict('all'); setSelectedCuisine('all'); setSort('rating'); setOpenNowOnly(false); setDrawerOpen(false) }}
                     className="h-12 rounded-full bg-card text-sm font-medium text-foreground shadow-[0px_0px_0px_1px_#d1cfc5]">
                     Reset
                   </button>
                   <DrawerClose asChild>
-                    <button type="button" className="h-12 rounded-full bg-primary text-sm font-medium text-primary-foreground shadow-[0px_0px_0px_1px_#c96442]">Apply</button>
+                    <button type="button" className="h-12 rounded-full bg-primary text-sm font-medium text-primary-foreground">Apply</button>
                   </DrawerClose>
                 </DrawerFooter>
               </DrawerContent>
             </Drawer>
           </div>
         </div>
+        {/* Thin separator line */}
+        <div className="mx-5 h-px bg-border" />
       </header>
 
-      <main className="flex flex-1 flex-col px-4 pb-[calc(env(safe-area-inset-bottom,0px)+80px)] pt-4">
+      <main className="flex flex-1 flex-col px-4 pb-[calc(env(safe-area-inset-bottom,0px)+96px)] pt-4">
         {/* Sync banner */}
-        {(needsSync || syncActive) && (
+        {(needsSync || syncActive) && !showSkeleton && (
           <div className="mb-4 rounded-2xl border border-border bg-card p-4">
             <div className="flex items-start gap-3">
               <div className="mt-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 flex-shrink-0">
@@ -800,14 +815,52 @@ export function RestaurantGrid({ initialData }: { initialData?: ApiResponse }) {
           </div>
         )}
 
-        {/* Loading / error */}
         {error ? (
           <div className="flex flex-1 items-center justify-center text-center">
-            <div><p className="font-serif text-xl text-foreground">Something went wrong.</p>
-              <button type="button" onClick={() => mutate()} className="mt-4 rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground">Try again</button></div>
+            <div>
+              <p className="font-serif text-xl text-foreground">Something went wrong.</p>
+              <button type="button" onClick={() => mutate()} className="mt-4 rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground">Try again</button>
+            </div>
           </div>
-        ) : isLoading && !responseData ? (
-          <div className="flex flex-1 items-center justify-center"><Spinner className="h-10 w-10 text-primary" /></div>
+        ) : showSkeleton ? (
+          /* ── Skeleton deck ── beautiful placeholder while loading */
+          <div className="flex flex-1 flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div className="skeleton-shimmer h-4 w-28 rounded-full" />
+            </div>
+            <div className="skeleton-shimmer h-1 w-full rounded-full" />
+            <div className="relative flex flex-1 items-center justify-center py-2">
+              {/* 3rd card skeleton */}
+              <div className="absolute w-full pointer-events-none" style={{ transform: 'scale(0.91) translateY(22px)', opacity: 0.45 }}>
+                <div className="skeleton-shimmer w-full rounded-[28px]" style={{ aspectRatio: '5/7', minHeight: 480 }} />
+              </div>
+              {/* 2nd card skeleton */}
+              <div className="absolute w-full pointer-events-none" style={{ transform: 'scale(0.96) translateY(10px)', opacity: 0.7 }}>
+                <div className="skeleton-shimmer w-full rounded-[28px]" style={{ aspectRatio: '5/7', minHeight: 480 }} />
+              </div>
+              {/* Front card skeleton */}
+              <div className="relative w-full rounded-[28px] overflow-hidden" style={{ aspectRatio: '5/7', minHeight: 480 }}>
+                <div className="skeleton-shimmer absolute inset-0" />
+                {/* Fake content overlay */}
+                <div className="absolute inset-x-0 bottom-0 p-6 space-y-3">
+                  <div className="skeleton-shimmer h-3 w-16 rounded-full opacity-60" />
+                  <div className="skeleton-shimmer h-8 w-3/4 rounded-xl opacity-60" />
+                  <div className="skeleton-shimmer h-4 w-full rounded-full opacity-40" />
+                  <div className="skeleton-shimmer h-4 w-4/5 rounded-full opacity-40" />
+                  <div className="flex gap-2 pt-1">
+                    <div className="skeleton-shimmer h-7 w-20 rounded-full opacity-50" />
+                    <div className="skeleton-shimmer h-7 w-16 rounded-full opacity-50" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            {/* Skeleton action buttons */}
+            <div className="flex items-center justify-center gap-4 pb-1">
+              <div className="skeleton-shimmer h-14 w-14 rounded-full" />
+              <div className="skeleton-shimmer h-12 w-28 rounded-full" />
+              <div className="skeleton-shimmer h-14 w-14 rounded-full" />
+            </div>
+          </div>
         ) : view === 'discover' ? (
           <section className="flex flex-1 flex-col gap-4">
             {/* Stats row */}
@@ -894,7 +947,7 @@ export function RestaurantGrid({ initialData }: { initialData?: ApiResponse }) {
                   <DeckButton label="Skip" variant="skip" disabled={!currentRestaurant || !!exitDir} onClick={() => triggerSwipe('left')}>
                     <X className="h-5 w-5" />
                   </DeckButton>
-                  <DeckButton label="View details" variant="detail" disabled={!currentRestaurant} onClick={() => setSelectedRestaurant(currentRestaurant?.id || null)}>
+                  <DeckButton label="View details" variant="detail" disabled={!currentRestaurant} onClick={() => currentRestaurant && openSheet(currentRestaurant)}>
                     <span className="inline-flex items-center gap-2"><Eye className="h-4 w-4" />Details</span>
                   </DeckButton>
                   <DeckButton label="Save restaurant" variant="save" disabled={!currentRestaurant || !!exitDir} onClick={() => triggerSwipe('right')} btnRef={saveButtonRef}>
@@ -930,7 +983,7 @@ export function RestaurantGrid({ initialData }: { initialData?: ApiResponse }) {
             {savedRestaurants.length > 0 ? (
               <div className="grid gap-3">
                 {savedRestaurants.map(r => (
-                  <button key={r.id} type="button" onClick={() => setSelectedRestaurant(r.id)} className="text-left">
+                  <button key={r.id} type="button" onClick={() => openSheet(r)} className="text-left">
                     <RestaurantCard restaurant={r} variant="saved" />
                   </button>
                 ))}
@@ -948,23 +1001,31 @@ export function RestaurantGrid({ initialData }: { initialData?: ApiResponse }) {
         )}
       </main>
 
-      {/* ── Bottom nav ──────────────────────────────────────────────── */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/94 backdrop-blur">
-        <div className="grid grid-cols-2 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+8px)] pt-2">
+      {/* ── Bottom nav — floating pill island ──────────────────────── */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex justify-center pb-[calc(env(safe-area-inset-bottom,0px)+16px)] pt-3 pointer-events-none">
+        <div className="pointer-events-auto flex items-center gap-1 rounded-[22px] bg-card/96 p-1.5 shadow-[0px_4px_32px_rgba(0,0,0,0.12),0px_0px_0px_1px_#e8e6dc] backdrop-blur-xl">
           {[
-            { key: 'discover' as const, label: 'Discover', icon: <Sparkles className="h-5 w-5" /> },
-            { key: 'saved' as const, label: savedIds.length > 0 ? `Saved (${savedIds.length})` : 'Saved', icon: <Heart className="h-5 w-5" /> },
+            { key: 'discover' as const, label: 'Discover', icon: <Sparkles className="h-4 w-4" /> },
+            { key: 'saved' as const, label: savedIds.length > 0 ? `Saved · ${savedIds.length}` : 'Saved', icon: <Heart className={`h-4 w-4 ${savedIds.length > 0 ? 'fill-primary text-primary' : ''}`} /> },
           ].map(tab => (
             <button key={tab.key} type="button" onClick={() => setView(tab.key)}
-              className={`flex flex-col items-center gap-1 rounded-2xl py-2.5 text-sm transition-colors ${view === tab.key ? 'bg-card text-foreground shadow-[0px_0px_0px_1px_#d1cfc5]' : 'text-muted-foreground'}`}>
+              className={`flex items-center gap-2 rounded-[16px] px-5 py-2.5 text-sm font-medium transition-all duration-200 ${
+                view === tab.key
+                  ? 'bg-foreground text-background shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}>
               {tab.icon}
-              <span className="text-xs font-medium">{tab.label}</span>
+              <span>{tab.label}</span>
             </button>
           ))}
         </div>
       </nav>
 
-      <RestaurantDetailSheet restaurantId={selectedRestaurant} onClose={() => setSelectedRestaurant(null)} />
+      <RestaurantDetailSheet
+        restaurantId={selectedRestaurant}
+        hint={selectedRestaurantHint}
+        onClose={() => { setSelectedRestaurant(null); setSelectedRestaurantHint(null) }}
+      />
     </div>
   )
 }

@@ -54,7 +54,7 @@ async function fetchPlaceDetails(placeId: string): Promise<RestaurantDetails | n
       userRatingsTotal: place.user_ratings_total || 0,
       priceLevel: place.price_level,
       types: place.types || [],
-      photoUrl: photos[0]?.url || null,
+      photoUrl: photos[0]?.url || undefined,
       photoUrls: photos.map(p => p.url!).filter(Boolean),
       location: { lat: place.geometry?.location?.lat || 0, lng: place.geometry?.location?.lng || 0 },
       district: '',
