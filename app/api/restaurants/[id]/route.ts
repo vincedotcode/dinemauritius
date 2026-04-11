@@ -103,28 +103,32 @@ export async function GET(
 ) {
   const { id } = await params
 
+  const CACHE_HEADERS = { 'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400' }
+
   try {
     // Try Redis cache first
     let details = await redis.get<RestaurantDetails>(REDIS_KEYS.RESTAURANT_DETAILS(id))
 
     if (!details) {
-      // Not cached yet — fetch from Google Places on demand
-      details = await fetchPlaceDetails(id)
+      // Fetch Google + allRestaurants in parallel on cache miss
+      const [fetched, allRestaurants] = await Promise.all([
+        fetchPlaceDetails(id),
+        redis.get<{ id: string; district: string }[]>(REDIS_KEYS.ALL_RESTAURANTS),
+      ])
 
-      if (!details) {
+      if (!fetched) {
         return NextResponse.json({ error: "Restaurant not found" }, { status: 404 })
       }
 
-      // Backfill district from the restaurants list if available
-      const allRestaurants = await redis.get<{ id: string; district: string }[]>(REDIS_KEYS.ALL_RESTAURANTS)
+      details = fetched
       const match = allRestaurants?.find(r => r.id === id)
       if (match) details.district = match.district
 
-      // Cache the details for next time
-      await redis.set(REDIS_KEYS.RESTAURANT_DETAILS(id), details)
+      // Cache async — don't block the response
+      redis.set(REDIS_KEYS.RESTAURANT_DETAILS(id), details).catch(() => {})
     }
 
-    return NextResponse.json(details)
+    return NextResponse.json(details, { headers: CACHE_HEADERS })
   } catch (error) {
     console.error("Error fetching restaurant details:", error)
     return NextResponse.json({ error: "Failed to fetch restaurant details" }, { status: 500 })

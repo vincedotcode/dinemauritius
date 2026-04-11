@@ -65,16 +65,16 @@ export async function GET(request: NextRequest) {
         break
     }
 
-    // Get districts info
-    const districts = await redis.get<District[]>(REDIS_KEYS.DISTRICTS) || []
-    const lastSync = await redis.get<string>(REDIS_KEYS.LAST_SYNC)
+    // Get districts + lastSync in parallel
+    const [districts, lastSync] = await Promise.all([
+      redis.get<District[]>(REDIS_KEYS.DISTRICTS),
+      redis.get<string>(REDIS_KEYS.LAST_SYNC),
+    ])
 
-    return NextResponse.json({
-      restaurants,
-      districts,
-      totalCount: restaurants.length,
-      lastSync,
-    })
+    return NextResponse.json(
+      { restaurants, districts: districts || [], totalCount: restaurants.length, lastSync },
+      { headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' } },
+    )
   } catch (error) {
     console.error("Error fetching restaurants:", error)
     return NextResponse.json({

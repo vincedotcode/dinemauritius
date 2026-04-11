@@ -234,7 +234,7 @@ export function RestaurantDetailSheet({ restaurantId, onClose }: Props) {
 
                 {/* Editorial summary */}
                 {restaurant.editorialSummary && (
-                  <blockquote className="border-l-3 border-primary pl-4">
+                  <blockquote className="border-l-[3px] border-primary pl-4">
                     <p className="font-serif text-base italic text-muted-foreground leading-relaxed">
                       "{restaurant.editorialSummary}"
                     </p>

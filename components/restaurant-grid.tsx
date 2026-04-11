@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import useSWR from 'swr'
 import {
   Bookmark, Clock, Database, Eye, Heart, MapPin, RefreshCw,
@@ -105,7 +105,7 @@ function WarmSelect({ label, value, onChange, options }: {
 
 function DeckButton({ onClick, label, variant, disabled, children, btnRef }: {
   onClick: () => void; label: string; variant: 'skip' | 'detail' | 'save'; disabled?: boolean; children: React.ReactNode
-  btnRef?: React.RefObject<HTMLButtonElement>
+  btnRef?: RefObject<HTMLButtonElement>
 }) {
   const cls = {
     skip: 'h-14 w-14 rounded-full bg-secondary text-secondary-foreground shadow-[0px_0px_0px_1px_#d1cfc5]',
