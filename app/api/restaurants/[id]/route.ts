@@ -19,7 +19,7 @@ async function fetchPlaceDetails(placeId: string): Promise<RestaurantDetails | n
   ].join(','))
   url.searchParams.set('key', GOOGLE_API_KEY)
 
-  const response = await fetch(url.toString())
+  const response = await fetch(url.toString(), { cache: 'no-store' })
   const data = await response.json()
 
   if (!data.result) return null

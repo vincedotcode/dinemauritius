@@ -4,11 +4,12 @@
 
 ## Project Overview
 
-**Dine Mauritius** is a Next.js 16 / React 19 restaurant discovery app for Mauritius.
+**Dine Mauritius** is a Next.js 16 / React 19 swipe-first restaurant discovery PWA for Mauritius.
 - Data source: Google Places API (nearby search + place details)
 - Storage: Upstash Redis (via `@upstash/redis`)
 - Styling: Tailwind CSS v4 + shadcn/ui
 - Design language: warm Claude/Anthropic aesthetic — see `docs/design.md`
+- Product shape: restaurant swipe deck first, saved shortlist second
 - Docs and design files live in `docs/`
 
 ### Key files
@@ -20,6 +21,7 @@
 | `lib/redis.ts` | Upstash Redis client + key constants |
 | `lib/types.ts` | Shared TypeScript types |
 | `docs/design.md` | Full design system reference (colors, typography, components) |
+| `docs/dine-mauritius-ux-research.md` | UX, branding, and MVP product rationale |
 
 ### Architecture decisions
 - **Sync stores only nearby-search data** (not full details) to stay within Vercel's serverless timeout.
@@ -80,6 +82,7 @@ For multi-step tasks, state a brief plan first:
 - **Vercel timeouts**: Hobby plan = 10s default, 60s max. Add `export const maxDuration = 60` to long-running routes. Never do N×M API calls in a single serverless request.
 - **Redis keys**: All defined in `lib/redis.ts` `REDIS_KEYS`. Don't hardcode key strings.
 - **Design**: Always follow `docs/design.md`. Use warm neutrals, Georgia/serif for headings, parchment backgrounds — never cool blue-grays.
+- **Interaction model**: Discovery starts on the restaurant swipe deck. Saved restaurants and filters support that core flow.
 - **Types**: All shared types in `lib/types.ts`. Don't duplicate type definitions.
 - **Images**: Google Maps photo URLs require the `key` param. They're allowlisted in `next.config.mjs`.
 

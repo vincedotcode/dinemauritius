@@ -112,12 +112,35 @@
   --color-sidebar-ring: var(--ring);
 }
 
+/* ─── Fire particle animations ────────────────────────────────────────────── */
+@keyframes fireFloat0 {
+  0%   { transform: translateY(0) scale(1.3) rotate(-8deg); opacity: 1; }
+  50%  { opacity: 1; }
+  100% { transform: translateY(-300px) translateX(-50px) scale(0.25) rotate(-35deg); opacity: 0; }
+}
+@keyframes fireFloat1 {
+  0%   { transform: translateY(0) scale(1.5) rotate(0deg); opacity: 1; }
+  50%  { opacity: 1; }
+  100% { transform: translateY(-260px) translateX(30px) scale(0.2) rotate(30deg); opacity: 0; }
+}
+@keyframes fireFloat2 {
+  0%   { transform: translateY(0) scale(1.1) rotate(12deg); opacity: 1; }
+  45%  { opacity: 1; }
+  100% { transform: translateY(-340px) translateX(-15px) scale(0.35) rotate(-25deg); opacity: 0; }
+}
+
 @layer base {
+  html {
+    min-height: 100%;
+    background: var(--background);
+  }
+
   * {
     @apply border-border outline-ring/50;
   }
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    min-height: 100dvh;
     font-feature-settings: 'rlig' 1, 'calt' 1;
   }
 
@@ -126,5 +149,10 @@
     font-family: var(--font-serif);
     font-weight: 500;
     line-height: 1.15;
+  }
+
+  ::selection {
+    background: rgba(201, 100, 66, 0.18);
+    color: var(--foreground);
   }
 }

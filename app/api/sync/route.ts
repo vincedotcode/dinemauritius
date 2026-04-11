@@ -29,7 +29,19 @@ const MAURITIUS_DISTRICTS: District[] = [
   { name: 'Trou aux Biches', coordinates: { lat: -20.0333, lng: 57.5500 }, restaurantCount: 0 },
 ]
 
-async function fetchNearbyRestaurants(lat: number, lng: number, pageToken?: string): Promise<{ results: any[]; nextPageToken?: string; status: string }> {
+type NearbySearchResponse = {
+  results: any[]
+  nextPageToken?: string
+  status: string
+  errorMessage?: string
+}
+
+async function fetchNearbyRestaurants(
+  lat: number,
+  lng: number,
+  pageToken?: string,
+  attempt = 0
+): Promise<NearbySearchResponse> {
   const url = new URL('https://maps.googleapis.com/maps/api/place/nearbysearch/json')
   url.searchParams.set('location', `${lat},${lng}`)
   url.searchParams.set('radius', '10000') // 10km radius
@@ -40,13 +52,20 @@ async function fetchNearbyRestaurants(lat: number, lng: number, pageToken?: stri
     url.searchParams.set('pagetoken', pageToken)
   }
 
-  const response = await fetch(url.toString())
+  const response = await fetch(url.toString(), { cache: 'no-store' })
   const data = await response.json()
+
+  // next_page_token can briefly return INVALID_REQUEST before it becomes valid
+  if (pageToken && data.status === 'INVALID_REQUEST' && attempt < 4) {
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    return fetchNearbyRestaurants(lat, lng, pageToken, attempt + 1)
+  }
 
   return {
     results: data.results || [],
     nextPageToken: data.next_page_token,
     status: data.status,
+    errorMessage: data.error_message,
   }
 }
 
@@ -112,7 +131,6 @@ export async function POST() {
       })
 
       let pageToken: string | undefined
-      let districtCount = 0
       let pages = 0
 
       do {
@@ -121,7 +139,7 @@ export async function POST() {
           await new Promise(resolve => setTimeout(resolve, 2000))
         }
 
-        const { results, nextPageToken, status } = await fetchNearbyRestaurants(
+        const { results, nextPageToken, status, errorMessage } = await fetchNearbyRestaurants(
           district.coordinates.lat,
           district.coordinates.lng,
           pageToken
@@ -134,17 +152,26 @@ export async function POST() {
             currentDistrict: district.name,
             totalRestaurants: allRestaurants.size,
             lastSync: null,
-            error: `Google API error: ${status}. Enable Places API in Google Cloud Console.`,
+            error: `Google API error: ${status}${errorMessage ? ` - ${errorMessage}` : ''}`,
           })
           // Stop pagination on error but continue with next district
           break
         }
 
         for (const place of results) {
-          if (!allRestaurants.has(place.place_id)) {
-            allRestaurants.set(place.place_id, transformToRestaurant(place, district.name))
-            districtCount++
-          }
+          const existingRestaurant = allRestaurants.get(place.place_id)
+          const nextRestaurant = transformToRestaurant(
+            place,
+            existingRestaurant?.district || district.name
+          )
+
+          allRestaurants.set(place.place_id, existingRestaurant
+            ? {
+                ...existingRestaurant,
+                ...nextRestaurant,
+                district: existingRestaurant.district || district.name,
+              }
+            : nextRestaurant)
         }
 
         pageToken = nextPageToken
@@ -152,6 +179,10 @@ export async function POST() {
         // Cap at 3 pages per district to keep within timeout budget
         if (pages >= 3) break
       } while (pageToken)
+
+      const districtCount = Array.from(allRestaurants.values()).filter(
+        restaurant => restaurant.district === district.name
+      ).length
 
       districtsWithCounts.push({ ...district, restaurantCount: districtCount })
 

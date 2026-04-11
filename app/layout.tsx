@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Playfair_Display, DM_Sans } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
@@ -19,9 +19,17 @@ const dmSans = DM_Sans({
 })
 
 export const metadata: Metadata = {
-  title: 'Dine Mauritius — Discover Restaurants',
-  description: 'Discover the finest restaurants across all districts of Mauritius. Complete data from Google Maps including photos, reviews, hours, and more.',
-  generator: 'v0.app',
+  title: {
+    default: 'Dine Mauritius',
+    template: '%s | Dine Mauritius',
+  },
+  description: 'Swipe through standout restaurants across Mauritius, save the tables worth the detour, and open each one with Google Maps details.',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Dine Mauritius',
+  },
   icons: {
     icon: [
       { url: '/icon-light-32x32.png', media: '(prefers-color-scheme: light)' },
@@ -32,6 +40,12 @@ export const metadata: Metadata = {
   },
 }
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: '#c96442',
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
@@ -40,6 +54,17 @@ export default function RootLayout({
       <body className={`${playfair.variable} ${dmSans.variable} font-sans antialiased`}>
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                  navigator.serviceWorker.register('/sw.js').catch(() => {})
+                })
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   )

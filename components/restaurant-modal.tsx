@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Image from "next/image"
 import useSWR from "swr"
 import {
@@ -50,6 +50,10 @@ function FeatureItem({ available, label, icon: Icon }: {
 export function RestaurantModal({ restaurantId, onClose }: RestaurantModalProps) {
   const [photoIndex, setPhotoIndex] = useState(0)
 
+  useEffect(() => {
+    setPhotoIndex(0)
+  }, [restaurantId])
+
   const { data: restaurant, isLoading } = useSWR<RestaurantDetails>(
     restaurantId ? `/api/restaurants/${restaurantId}` : null,
     fetcher
@@ -63,7 +67,7 @@ export function RestaurantModal({ restaurantId, onClose }: RestaurantModalProps)
 
   return (
     <Dialog open={!!restaurantId} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[94vh] overflow-y-auto bg-card border-border p-0 rounded-2xl">
+      <DialogContent showCloseButton={false} className="max-w-3xl max-h-[94vh] overflow-y-auto bg-card border-border p-0 rounded-2xl">
 
         {isLoading ? (
           <div className="flex items-center justify-center h-80">
@@ -71,6 +75,16 @@ export function RestaurantModal({ restaurantId, onClose }: RestaurantModalProps)
           </div>
         ) : restaurant ? (
           <>
+            {!hasPhotos && (
+              <button
+                onClick={onClose}
+                aria-label="Close restaurant details"
+                className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-background shadow-md transition-colors hover:bg-secondary"
+              >
+                <X className="h-4 w-4 text-foreground" />
+              </button>
+            )}
+
             {/* ── Photo Gallery ──────────────────────────────────────────── */}
             {hasPhotos && (
               <div className="relative h-64 md:h-80 w-full overflow-hidden rounded-t-2xl bg-secondary">
@@ -85,6 +99,7 @@ export function RestaurantModal({ restaurantId, onClose }: RestaurantModalProps)
                 {/* Close */}
                 <button
                   onClick={onClose}
+                  aria-label="Close restaurant details"
                   className="absolute top-4 right-4 h-9 w-9 rounded-full bg-background/90 backdrop-blur-sm flex items-center justify-center shadow-md hover:bg-background transition-colors"
                 >
                   <X className="h-4 w-4 text-foreground" />
@@ -95,12 +110,14 @@ export function RestaurantModal({ restaurantId, onClose }: RestaurantModalProps)
                   <>
                     <button
                       onClick={prev}
+                      aria-label="Previous restaurant photo"
                       className="absolute left-3 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-background/90 backdrop-blur-sm flex items-center justify-center shadow-md hover:bg-background transition-colors"
                     >
                       <ChevronLeft className="h-4 w-4 text-foreground" />
                     </button>
                     <button
                       onClick={next}
+                      aria-label="Next restaurant photo"
                       className="absolute right-3 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-background/90 backdrop-blur-sm flex items-center justify-center shadow-md hover:bg-background transition-colors"
                     >
                       <ChevronRight className="h-4 w-4 text-foreground" />
@@ -117,6 +134,7 @@ export function RestaurantModal({ restaurantId, onClose }: RestaurantModalProps)
                         <button
                           key={idx}
                           onClick={() => setPhotoIndex(idx)}
+                          aria-label={`View photo ${idx + 1}`}
                           className={`relative h-10 w-10 rounded-lg overflow-hidden flex-shrink-0 ring-2 transition-all ${
                             idx === photoIndex ? "ring-primary" : "ring-transparent opacity-60 hover:opacity-100"
                           }`}

@@ -1,0 +1,46 @@
+{
+  "name": "Dine Mauritius",
+  "short_name": "Dine",
+  "description": "Swipe, save, and shortlist standout restaurants across Mauritius.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f5f4ed",
+  "theme_color": "#c96442",
+  "categories": ["food", "travel", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-light-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/apple-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Discover restaurants",
+      "short_name": "Discover",
+      "description": "Open the swipe deck",
+      "url": "/#discover",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Saved shortlist",
+      "short_name": "Saved",
+      "description": "Open your saved restaurants",
+      "url": "/#saved",
+      "icons": [{ "src": "/icon.svg", "sizes": "any" }]
+    }
+  ]
+}
